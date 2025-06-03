@@ -108,74 +108,101 @@ def file_load(wav_name, mono=False):
 ########################################################################
 # feature extractor
 ########################################################################
-def file_to_vectors(file_name,
-                    n_mels=64,
-                    n_frames=5,
-                    n_fft=1024,
-                    hop_length=512,
-                    power=2.0,
-                    fmax=None,
-                    fmin=None,
-                    win_length=None):
-    """
-    convert file_name to a vector array.
+# def file_to_vectors(file_name,
+#                     n_mels=64,
+#                     n_frames=5,
+#                     n_fft=1024,
+#                     hop_length=512,
+#                     power=2.0,
+#                     fmax=None,
+#                     fmin=None,
+#                     win_length=None):
+#     """
+#     convert file_name to a vector array.
 
-    file_name : str
-        target .wav file
+#     file_name : str
+#         target .wav file
 
-    return : numpy.array( numpy.array( float ) )
-        vector array
-        * dataset.shape = (dataset_size, feature_vector_length)
-    """
-    # calculate the number of dimensions
-    dims = n_mels * n_frames
+#     return : numpy.array( numpy.array( float ) )
+#         vector array
+#         * dataset.shape = (dataset_size, feature_vector_length)
+#     """
+#     # calculate the number of dimensions
+#     dims = n_mels * n_frames
 
-    # load wav file
-    y, sr = file_load(file_name, mono=True)
+#     # load wav file
+#     y, sr = file_load(file_name, mono=True)
 
-    # Short Time Fourier Transform
-    stft = librosa.stft(y=y,
-                        n_fft=n_fft,
-                        hop_length=hop_length,
-                        win_length=win_length)
+#     # Short Time Fourier Transform
+#     stft = librosa.stft(y=y,
+#                         n_fft=n_fft,
+#                         hop_length=hop_length,
+#                         win_length=win_length)
 
-    spectrogram = np.abs(stft) ** power
+#     spectrogram = np.abs(stft) ** power
 
-    # crop frequency bins according to fmin and fmax
-    freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
-    idx = np.arange(len(freqs))
-    if fmin is not None:
-        idx = idx[freqs[idx] >= fmin]
-    if fmax is not None:
-        idx = idx[freqs[idx] <= fmax]
-    spectrogram = spectrogram[idx, :]
+#     # crop frequency bins according to fmin and fmax
+#     freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
+#     idx = np.arange(len(freqs))
+#     if fmin is not None:
+#         idx = idx[freqs[idx] >= fmin]
+#     if fmax is not None:
+#         idx = idx[freqs[idx] <= fmax]
+#     spectrogram = spectrogram[idx, :]
 
-    # ensure the number of frequency bins
-    if spectrogram.shape[0] < n_mels:
-        pad_width = n_mels - spectrogram.shape[0]
-        spectrogram = np.pad(spectrogram, ((0, pad_width), (0, 0)), mode="constant")
-    else:
-        spectrogram = spectrogram[:n_mels, :]
+#     # ensure the number of frequency bins
+#     if spectrogram.shape[0] < n_mels:
+#         pad_width = n_mels - spectrogram.shape[0]
+#         spectrogram = np.pad(spectrogram, ((0, pad_width), (0, 0)), mode="constant")
+#     else:
+#         spectrogram = spectrogram[:n_mels, :]
 
-    # convert to log energies
-    log_spectrogram = 20.0 / power * np.log10(np.maximum(spectrogram, sys.float_info.epsilon))
+#     # convert to log energies
+#     log_spectrogram = 20.0 / power * np.log10(np.maximum(spectrogram, sys.float_info.epsilon))
 
-    # calculate total vector size
-    n_vectors = log_spectrogram.shape[1] - n_frames + 1
+#     # calculate total vector size
+#     n_vectors = log_spectrogram.shape[1] - n_frames + 1
 
-    # skip too short clips
-    if n_vectors < 1:
-        return np.empty((0, dims))
+#     # skip too short clips
+#     if n_vectors < 1:
+#         return np.empty((0, dims))
 
-    # generate feature vectors by concatenating multi frames
-    vectors = np.zeros((n_vectors, dims))
-    for t in range(n_frames):
-        vectors[:, n_mels * t : n_mels * (t + 1)] = log_spectrogram[:, t : t + n_vectors].T
+#     # generate feature vectors by concatenating multi frames
+#     vectors = np.zeros((n_vectors, dims))
+#     for t in range(n_frames):
+#         vectors[:, n_mels * t : n_mels * (t + 1)] = log_spectrogram[:, t : t + n_vectors].T
 
-    return vectors
+#     return vectors
 
 
 ########################################################################
+# GPT updated file_to_vector functino
+def file_to_vectors(file_name, n_mels=64, n_frames=5, n_fft=1024, hop_length=512, power=2.0):
+    """
+    Convert file_name to a vector array using log-magnitude STFT features.
+    The output is an array of shape (num_vectors, n_freq_bins * n_frames),
+    where n_freq_bins = n_fft//2 + 1.
+    """
+    # 1. Load audio file (mono)
+    y, sr = file_load(file_name, mono=True)
+    # 2. Compute magnitude STFT (spectrogram)
+    stft_matrix = librosa.stft(y, n_fft=n_fft, hop_length=hop_length)
+    spectrogram = np.abs(stft_matrix) ** power  # magnitude^power (power=2.0 for power spectrogram)
+    # 3. Convert to log scale (log-magnitude or log-power)
+    log_spectrogram = 20.0 / power * np.log10(np.maximum(spectrogram, 1e-8))
+    # 4. Determine dimensions and frame count
+    n_freq_bins = log_spectrogram.shape[0]  # number of frequency bins (n_fft//2 + 1)
+    dims = n_freq_bins * n_frames
+    vector_array_size = log_spectrogram.shape[1] - n_frames + 1
+    # 5. Return empty array if audio is too short
+    if vector_array_size < 1:
+        return np.empty((0, dims))
+    # 6. Stack consecutive frames into feature vectors
+    vectors = np.zeros((vector_array_size, dims), dtype=float)
+    for t in range(n_frames):
+        # slice out frames t to t+vector_array_size for each frequency bin
+        vectors[:, n_freq_bins * t : n_freq_bins * (t + 1)] = log_spectrogram[:, t : t + vector_array_size].T
+    return vectors
 
 
 ########################################################################

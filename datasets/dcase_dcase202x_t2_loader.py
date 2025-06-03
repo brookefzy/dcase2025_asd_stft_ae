@@ -62,7 +62,8 @@ class DCASE202XT2Loader(torch.utils.data.Dataset):
         else:
             fmin_max = f"_f{fmin}-{fmax}"
         self.log_melspectrogram_dir = os.path.abspath(
-            "{dir}/stft_fft{n_fft}_hop{hop_length}{fmin_max}".format(
+            # manual updates here
+            "{dir}/stft_v2_fft{n_fft}_hop{hop_length}{fmin_max}".format(
                 dir=self.pickle_dir,
                 n_mels=n_mels,
                 n_fft=n_fft,
