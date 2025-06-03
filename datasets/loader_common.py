@@ -177,7 +177,14 @@ def file_load(wav_name, mono=False):
 
 ########################################################################
 # GPT updated file_to_vector functino
-def file_to_vectors(file_name, n_mels=64, n_frames=5, n_fft=1024, hop_length=512, power=2.0):
+def file_to_vectors(file_name, n_mels=64, 
+                    n_frames=5, 
+                    n_fft=1024, 
+                    hop_length=512, 
+                    power=2.0,
+                    fmax=None,
+                    fmin=None,
+                    win_length=None):
     """
     Convert file_name to a vector array using log-magnitude STFT features.
     The output is an array of shape (num_vectors, n_freq_bins * n_frames),
