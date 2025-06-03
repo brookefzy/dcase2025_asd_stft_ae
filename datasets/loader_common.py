@@ -130,23 +130,38 @@ def file_to_vectors(file_name,
     # calculate the number of dimensions
     dims = n_mels * n_frames
 
-    # generate melspectrogram using librosa
+    # load wav file
     y, sr = file_load(file_name, mono=True)
-    mel_spectrogram = librosa.feature.melspectrogram(y=y,
-                                                        sr=sr,
-                                                        n_fft=n_fft,
-                                                        hop_length=hop_length,
-                                                        n_mels=n_mels,
-                                                        power=power,
-                                                        fmax=fmax,
-                                                        fmin=fmin,
-                                                        win_length=win_length)
 
-    # convert melspectrogram to log mel energies
-    log_mel_spectrogram = 20.0 / power * np.log10(np.maximum(mel_spectrogram, sys.float_info.epsilon))
+    # Short Time Fourier Transform
+    stft = librosa.stft(y=y,
+                        n_fft=n_fft,
+                        hop_length=hop_length,
+                        win_length=win_length)
+
+    spectrogram = np.abs(stft) ** power
+
+    # crop frequency bins according to fmin and fmax
+    freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
+    idx = np.arange(len(freqs))
+    if fmin is not None:
+        idx = idx[freqs[idx] >= fmin]
+    if fmax is not None:
+        idx = idx[freqs[idx] <= fmax]
+    spectrogram = spectrogram[idx, :]
+
+    # ensure the number of frequency bins
+    if spectrogram.shape[0] < n_mels:
+        pad_width = n_mels - spectrogram.shape[0]
+        spectrogram = np.pad(spectrogram, ((0, pad_width), (0, 0)), mode="constant")
+    else:
+        spectrogram = spectrogram[:n_mels, :]
+
+    # convert to log energies
+    log_spectrogram = 20.0 / power * np.log10(np.maximum(spectrogram, sys.float_info.epsilon))
 
     # calculate total vector size
-    n_vectors = len(log_mel_spectrogram[0, :]) - n_frames + 1
+    n_vectors = log_spectrogram.shape[1] - n_frames + 1
 
     # skip too short clips
     if n_vectors < 1:
@@ -155,7 +170,7 @@ def file_to_vectors(file_name,
     # generate feature vectors by concatenating multi frames
     vectors = np.zeros((n_vectors, dims))
     for t in range(n_frames):
-        vectors[:, n_mels * t : n_mels * (t + 1)] = log_mel_spectrogram[:, t : t + n_vectors].T
+        vectors[:, n_mels * t : n_mels * (t + 1)] = log_spectrogram[:, t : t + n_vectors].T
 
     return vectors
 
