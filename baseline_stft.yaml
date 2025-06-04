@@ -1,6 +1,6 @@
 --dataset_directory: ./data
---result_directory: ./results
---export_dir: baseline
+--result_directory: ./resultsv2
+--export_dir: baseline_stft
 
 --use_cuda: True
 --log_interval: 100
