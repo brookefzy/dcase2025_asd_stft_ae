@@ -339,6 +339,12 @@ class DCASE2023T2AE(BaseModel):
                     inv_cov_target=inv_cov_target,
                 )
 
+            # apply EMA smoothing to anomaly scores
+            smoothed_scores = self.apply_ema([s[1] for s in anomaly_score_list])
+            for idx, score in enumerate(smoothed_scores):
+                anomaly_score_list[idx][1] = score
+            y_pred = smoothed_scores
+
             # output anomaly scores
             save_csv(save_file_path=anomaly_score_csv, save_data=anomaly_score_list)
             print("anomaly score result ->  {}".format(anomaly_score_csv))
