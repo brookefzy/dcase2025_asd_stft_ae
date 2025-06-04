@@ -162,3 +162,12 @@ class BaseModel(object):
         eval_data_anomaly_score_csv_path = self.eval_data_result_dir / os.path.basename(anomaly_score_csv_path).replace(self.model_name_suffix, "")
         print(f"copy anomaly score: {anomaly_score_csv_path}\n\t->{eval_data_anomaly_score_csv_path}")
         shutil.copyfile(anomaly_score_csv_path, eval_data_anomaly_score_csv_path)
+
+    def apply_ema(self, values, alpha=0.2):
+        """Apply Exponential Moving Average smoothing to a list of values."""
+        smoothed = []
+        ema = None
+        for v in values:
+            ema = v if ema is None else alpha * v + (1 - alpha) * ema
+            smoothed.append(ema)
+        return smoothed
