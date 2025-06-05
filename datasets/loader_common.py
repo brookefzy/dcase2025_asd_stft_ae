@@ -108,6 +108,38 @@ def file_load(wav_name, mono=False):
 ########################################################################
 # feature extractor
 ########################################################################
+def downsample_stft_linear(spectrogram, n_bins_out=64, method="sum"):
+    """Downsample a spectrogram along the frequency axis.
+
+    Parameters
+    ----------
+    spectrogram : numpy.ndarray
+        STFT magnitude or power spectrum with shape ``(F, T)``.
+    n_bins_out : int, optional
+        Number of output frequency bins. Default is ``64``.
+    method : str, optional
+        ``"sum"`` to sum energies in each bin or ``"mean"`` to average.
+
+    Returns
+    -------
+    numpy.ndarray
+        Downsampled spectrogram of shape ``(n_bins_out, T)``.
+    """
+
+    n_bins_in, n_frames = spectrogram.shape
+    edges = np.linspace(0, n_bins_in, n_bins_out + 1, dtype=int)
+    pooled = np.zeros((n_bins_out, n_frames), dtype=spectrogram.dtype)
+    for i in range(n_bins_out):
+        start, end = edges[i], edges[i + 1]
+        if start >= end:
+            pooled[i] = spectrogram[min(start, n_bins_in - 1), :]
+        elif method == "mean":
+            pooled[i] = spectrogram[start:end].mean(axis=0)
+        else:
+            pooled[i] = spectrogram[start:end].sum(axis=0)
+    return pooled
+
+
 def file_to_vectors(file_name,
                     n_mels=64,
                     n_frames=5,
@@ -118,15 +150,19 @@ def file_to_vectors(file_name,
                     fmin=None,
                     win_length=None):
     """
-    convert file_name to a vector array.
+    Convert ``file_name`` to a vector array using a downsampled STFT.
 
+    Parameters
+    ----------
     file_name : str
-        target .wav file
+        Target ``.wav`` file path.
 
-    return : numpy.array( numpy.array( float ) )
-        vector array
-        * dataset.shape = (dataset_size, feature_vector_length)
+    Returns
+    -------
+    numpy.ndarray
+        Array with shape ``(n_vectors, n_mels * n_frames)``.
     """
+
     # calculate the number of dimensions
     dims = n_mels * n_frames
 
@@ -150,12 +186,8 @@ def file_to_vectors(file_name,
         idx = idx[freqs[idx] <= fmax]
     spectrogram = spectrogram[idx, :]
 
-    # ensure the number of frequency bins
-    if spectrogram.shape[0] < n_mels:
-        pad_width = n_mels - spectrogram.shape[0]
-        spectrogram = np.pad(spectrogram, ((0, pad_width), (0, 0)), mode="constant")
-    else:
-        spectrogram = spectrogram[:n_mels, :]
+    # downsample to the desired number of bins while preserving energy
+    spectrogram = downsample_stft_linear(spectrogram, n_bins_out=n_mels, method="sum")
 
     # convert to log energies
     log_spectrogram = 20.0 / power * np.log10(np.maximum(spectrogram, sys.float_info.epsilon))
@@ -175,41 +207,6 @@ def file_to_vectors(file_name,
     return vectors
 
 
-########################################################################
-# GPT updated file_to_vector functino
-# def file_to_vectors(file_name, n_mels=64, 
-#                     n_frames=5, 
-#                     n_fft=1024, 
-#                     hop_length=512, 
-#                     power=2.0,
-#                     fmax=None,
-#                     fmin=None,
-#                     win_length=None):
-#     """
-#     Convert file_name to a vector array using log-magnitude STFT features.
-#     The output is an array of shape (num_vectors, n_freq_bins * n_frames),
-#     where n_freq_bins = n_fft//2 + 1.
-#     """
-#     # 1. Load audio file (mono)
-#     y, sr = file_load(file_name, mono=True)
-#     # 2. Compute magnitude STFT (spectrogram)
-#     stft_matrix = librosa.stft(y, n_fft=n_fft, hop_length=hop_length)
-#     spectrogram = np.abs(stft_matrix) ** power  # magnitude^power (power=2.0 for power spectrogram)
-#     # 3. Convert to log scale (log-magnitude or log-power)
-#     log_spectrogram = 20.0 / power * np.log10(np.maximum(spectrogram, 1e-8))
-#     # 4. Determine dimensions and frame count
-#     n_freq_bins = log_spectrogram.shape[0]  # number of frequency bins (n_fft//2 + 1)
-#     dims = n_freq_bins * n_frames
-#     vector_array_size = log_spectrogram.shape[1] - n_frames + 1
-#     # 5. Return empty array if audio is too short
-#     if vector_array_size < 1:
-#         return np.empty((0, dims))
-#     # 6. Stack consecutive frames into feature vectors
-#     vectors = np.zeros((vector_array_size, dims), dtype=float)
-#     for t in range(n_frames):
-#         # slice out frames t to t+vector_array_size for each frequency bin
-#         vectors[:, n_freq_bins * t : n_freq_bins * (t + 1)] = log_spectrogram[:, t : t + vector_array_size].T
-#     return vectors
 
 
 ########################################################################
