@@ -86,7 +86,12 @@ class DCASE2023T2AE(BaseModel):
 
             if not is_calc_cov:
                 self.optimizer.zero_grad()
-            recon_batch, z = self.model(data)
+
+            input_data = data
+            if not is_calc_cov and self.args.noise_std > 0:
+                input_data = data + torch.randn_like(data) * self.args.noise_std
+
+            recon_batch, z = self.model(input_data)
 
             if is_calc_cov:
                 score_2d, cov_diff_source, cov_diff_target = loss_function_mahala(

@@ -27,6 +27,7 @@ import pickle
 import pickletools
 import time
 import datetime
+from scipy.ndimage import gaussian_filter1d
 from enum import Enum, auto
 from tools.rename_eval_wav import copy_wav as rename_wav
 ########################################################################
@@ -191,6 +192,14 @@ def file_to_vectors(file_name,
 
     # convert to log energies
     log_spectrogram = 20.0 / power * np.log10(np.maximum(spectrogram, sys.float_info.epsilon))
+
+    # Normalize each frequency band (CMVN-like)
+    mean = np.mean(log_spectrogram, axis=1, keepdims=True)
+    std = np.std(log_spectrogram, axis=1, keepdims=True) + 1e-8
+    log_spectrogram = (log_spectrogram - mean) / std
+
+    # Apply light temporal smoothing to suppress spiky changes
+    log_spectrogram = gaussian_filter1d(log_spectrogram, sigma=1, axis=1)
 
     # calculate total vector size
     n_vectors = log_spectrogram.shape[1] - n_frames + 1
