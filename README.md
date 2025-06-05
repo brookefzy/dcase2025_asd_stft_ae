@@ -11,6 +11,7 @@ Differences between the previous dcase2022\_baseline\_ae and this version are as
 - The dcase2022\_baseline\_ae was implemented with Keras; however, this version is written in PyTorch.
 - Data folder structure is updated to support DCASE2025T2, DCASE2024T2 and DCASE2023T2 data sets.
 - The system uses the MSE loss as a loss function for training, but for testing, two score functions depend on the testing modes (i.e., MSE for the Simple Autoencoder mode and Mahalanobis distance for the Selective Mahalanobis mode).
+- STFT features are now normalized per frequency band and lightly smoothed over time, and Gaussian noise is added to inputs during training for improved robustness.
   
 ## Description
 

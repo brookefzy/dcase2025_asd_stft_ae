@@ -29,3 +29,4 @@
 -lr: 0.001
 --shuffle: True
 --validation_split: 0.1
+--noise_std: 0.01

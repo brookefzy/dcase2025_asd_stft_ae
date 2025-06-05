@@ -81,6 +81,8 @@ def get_argparse():
     parser.add_argument('--shuffle', type=str, default="full",
                         help='shuffle type (full , simple)')
     parser.add_argument('--validation_split', type=float, default=0.1)
+    parser.add_argument('--noise_std', type=float, default=0.0,
+                        help='Std of Gaussian noise added to inputs during training')
 
     # dataset
     parser.add_argument('--dataset_directory', type=str, default='data',
