@@ -109,7 +109,7 @@ def file_load(wav_name, mono=False):
 ########################################################################
 # feature extractor
 ########################################################################
-def downsample_stft_linear(spectrogram, n_bins_out=64, method="sum"):
+def downsample_stft_linear(spectrogram, n_bins_out=64, method="mean"):
     """Downsample a spectrogram along the frequency axis.
 
     Parameters
