@@ -1,8 +1,10 @@
 from networks.dcase2023t2_ae.dcase2023t2_ae import DCASE2023T2AE
+from networks.dcase2023t2_ae.dcase2023t2_vae import DCASE2023T2VAE
 
 class Models:
     ModelsDic = {
         "DCASE2023T2-AE":DCASE2023T2AE,
+        "DCASE2023T2-VAE":DCASE2023T2VAE,
     }
 
     def __init__(self,models_str):

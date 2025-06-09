@@ -76,7 +76,7 @@ then
 fi
 
 # parameters
-model="DCASE2023T2-AE"
+model="DCASE2023T2-VAE"
 dir_name="summarize"
 float_format=None
 # float_format="%.4f"
