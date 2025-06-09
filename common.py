@@ -39,7 +39,7 @@ def float_or_None(v):
 def get_argparse():
     parser = argparse.ArgumentParser(
             description='Main function to call training for different AutoEncoders')
-    parser.add_argument('--model', type=str, default='DCASE2023T2-AE', metavar='N',
+    parser.add_argument('--model', type=str, default='DCASE2023T2-VAE', metavar='N',
                         help='train model name')
     parser.add_argument('--score', type=str, default="MSE", choices=["MSE", "MAHALA"])
     parser.add_argument('--seed', type=int, default=39876401, metavar='S',

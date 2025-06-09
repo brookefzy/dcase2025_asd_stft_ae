@@ -10,7 +10,7 @@ import csv
 from tqdm import tqdm
 
 from networks.base_model import BaseModel
-from networks.dcase2023t2_ae.network import AENet
+from networks.dcase2023t2_ae.network import AENet, VAENet
 from networks.criterion.mahala import cov_v, loss_function_mahala, calc_inv_cov
 from tools.plot_anm_score import AnmScoreFigData
 from tools.plot_loss_curve import csv_to_figdata
@@ -91,7 +91,9 @@ class DCASE2023T2AE(BaseModel):
             if not is_calc_cov and self.args.noise_std > 0:
                 input_data = data + torch.randn_like(data) * self.args.noise_std
 
-            recon_batch, z = self.model(input_data)
+            outputs = self.model(input_data)
+            recon_batch = outputs[0]
+            latent = outputs[1:]
 
             if is_calc_cov:
                 score_2d, cov_diff_source, cov_diff_target = loss_function_mahala(
@@ -119,7 +121,8 @@ class DCASE2023T2AE(BaseModel):
             else:
                 score_2d = self.loss_fn(
                     recon_batch,
-                    data
+                    data,
+                    *latent
                 )
             
             # loss reduction
@@ -194,10 +197,13 @@ class DCASE2023T2AE(BaseModel):
                 data = batch[0]
                 data = data.to(self.device).float()
 
-                recon_batch, _ = self.model(data)
+                outputs = self.model(data)
+                recon_batch = outputs[0]
+                latent = outputs[1:]
                 score = self.loss_fn(
                     recon_batch,
-                    data
+                    data,
+                    *latent
                 )
                 loss = score.mean()
 
@@ -243,7 +249,8 @@ class DCASE2023T2AE(BaseModel):
 
     def calc_valid_mahala_score(self, data, y_pred, inv_cov_source, inv_cov_target):
         data = data.to(self.device).float()
-        recon_data, _ = self.model(data)
+        outputs = self.model(data)
+        recon_data = outputs[0]
         loss_source, num = loss_function_mahala(
             recon_x=recon_data,
             x=data,
@@ -272,8 +279,8 @@ class DCASE2023T2AE(BaseModel):
     def loss_reduction(self, score, n_loss):
         return torch.sum(score) / n_loss
 
-    def loss_fn(self,recon_x, x):
-        ### MSE loss ###
+    def loss_fn(self, recon_x, x, *args):
+        """Default MSE loss used for plain AutoEncoder."""
         loss = F.mse_loss(recon_x, x.view(recon_x.shape), reduction="none")
         return loss
 
@@ -467,7 +474,9 @@ class DCASE2023T2AE(BaseModel):
             y_true.append(batch[1][0].item())
             basename = batch[3][0]
 
-            recon_data, _ = self.model(data)
+            outputs = self.model(data)
+            recon_data = outputs[0]
+            latent = outputs[1:]
 
             if self.args.score == "MAHALA":
                 loss_source, num = loss_function_mahala(
@@ -491,7 +500,9 @@ class DCASE2023T2AE(BaseModel):
                 loss_target = self.loss_reduction(score=self.loss_reduction_1d(loss_target), n_loss=num)
                 y_pred.append(min(loss_target.item(), loss_source.item()))
             else:
-                y_pred.append(self.loss_fn(recon_x=recon_data, x=data).mean().item())
+                y_pred.append(
+                    self.loss_fn(recon_x=recon_data, x=data, *latent).mean().item()
+                )
             
             # store anomaly scores
             anomaly_score_list.append([basename, y_pred[-1]])
