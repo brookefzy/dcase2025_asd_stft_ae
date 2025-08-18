@@ -188,7 +188,7 @@ def file_to_vectors(file_name,
     spectrogram = spectrogram[idx, :]
 
     # downsample to the desired number of bins while preserving energy
-    spectrogram = downsample_stft_linear(spectrogram, n_bins_out=n_mels, method="sum")
+    spectrogram = downsample_stft_linear(spectrogram, n_bins_out=n_mels, method="mean")
 
     # convert to log energies
     log_spectrogram = 20.0 / power * np.log10(np.maximum(spectrogram, sys.float_info.epsilon))
